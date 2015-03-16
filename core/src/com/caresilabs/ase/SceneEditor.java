@@ -1,110 +1,136 @@
 package com.caresilabs.ase;
 
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.assets.AssetManager;
+import com.badlogic.gdx.assets.loaders.resolvers.AbsoluteFileHandleResolver;
+import com.badlogic.gdx.assets.loaders.resolvers.ExternalFileHandleResolver;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
-import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Button;
-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.List;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
-import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Slider;
-import com.badlogic.gdx.scenes.scene2d.ui.SplitPane;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.scenes.scene2d.ui.TextField;
-import com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldListener;
 import com.badlogic.gdx.scenes.scene2d.ui.Tree;
 import com.badlogic.gdx.scenes.scene2d.ui.Tree.Node;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
-import com.badlogic.gdx.scenes.scene2d.utils.Align;
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.DragAndDrop;
 import com.badlogic.gdx.scenes.scene2d.utils.DragAndDrop.Payload;
 import com.badlogic.gdx.scenes.scene2d.utils.DragAndDrop.Source;
 import com.badlogic.gdx.scenes.scene2d.utils.DragAndDrop.Target;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
+import com.caresilabs.ase.io.JsonSceneLoader;
+import com.caresilabs.ase.io.SceneLoader;
+import com.caresilabs.ase.listeners.SceneListener;
+import com.caresilabs.ase.models.GameObject;
+import com.caresilabs.ase.models.Scene;
+import com.caresilabs.ase.models.Resource;
 
 public class SceneEditor extends ApplicationAdapter {
-	SpriteBatch batch;
-	Texture img;
-	PerspectiveCamera cam;
-	FirstPersonCameraController c;
+	public static WatchService FileWatcher;
 
+	private World world;
 	private Stage stage;
+	private Skin skin;
+	private AssetManager assets;
 
-	Object[] listEntries = { "This is a list entry1", "And another one1", "The meaning of life1", "Is hard to come by1",
-			"This is a list entry2", "And another one2", "The meaning of life2", "Is hard to come by2", "This is a list entry3",
-			"And another one3", "The meaning of life3", "Is hard to come by3", "This is a list entry4", "And another one4",
-			"The meaning of life4", "Is hard to come by4", "This is a list entry5", "And another one5", "The meaning of life5",
-			"Is hard to come by5" };
-
-	Label fpsLabel;
-	Skin skin;
+	private Scene currentMap;
 
 	@Override
 	public void create () {
-		this.batch = new SpriteBatch();
 		this.stage = new Stage(new ExtendViewport(1280, 720)); //
-
-		skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-
-		Button buttonMulti = new TextButton("Multi\nLine\nToggle", skin, "toggle");
-
-		Label myLabel = new Label("this is some text.", skin);
-		myLabel.setWrap(true);
-
-		Table t = new Table();
-		t.row();
-		t.add(myLabel);
-
-		t.layout();
-
-		final CheckBox checkBox = new CheckBox(" Continuous rendering", skin);
-		checkBox.setChecked(true);
-		final Slider slider = new Slider(0, 10, 1, false, skin);
-		slider.setAnimateDuration(0.3f);
-		TextField textfield = new TextField("", skin);
-		textfield.setMessageText("Click here!");
-		textfield.setAlignment(Align.center);
-		final SelectBox<String> dropdown = new SelectBox<String>(skin);
-		dropdown.addListener(new ChangeListener() {
-			public void changed ( ChangeEvent event, Actor actor ) {
-				System.out.println(dropdown.getSelected());
+		
+		SceneListener editor = new SceneListener() {
+			@Override
+			public Scene getScene () {
+				return currentMap;
 			}
-		});
-		dropdown.setItems("Android1", "Windows1", "Linux1", "OSX1", "Android2", "Windows2", "Linux2", "OSX2", "Android3",
-				"Windows3", "Linux3", "OSX3", "Android4", "Windows4", "Linux4", "OSX4", "Android5", "Windows5", "Linux5", "OSX5",
-				"Android6", "Windows6", "Linux6", "OSX6", "Android7", "Windows7", "Linux7", "OSX7");
-		dropdown.setSelected("Linux6");
+		};
+		
+		this.world = new World(editor);
+		this.assets = new AssetManager(new AbsoluteFileHandleResolver());
 
-		List<Object> list = new List<Object>(skin);
-		list.setItems(listEntries);
-		list.getSelection().setMultiple(true);
-		list.getSelection().setRequired(false);
-		// list.getSelection().setToggle(true);
-		ScrollPane scrollPane2 = new ScrollPane(list, skin);
-		scrollPane2.setFlickScroll(false);
-		SplitPane splitPane = new SplitPane(scrollPane2, scrollPane2, false, skin, "default-horizontal");
-		fpsLabel = new Label("fps:", skin);
+		/*try {
+			FileWatcher = FileSystems.getDefault().newWatchService();
+			startListening();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		*/
 
-		// configures an example of a TextField in password mode.
-		final Label passwordLabel = new Label("Textfield in password mode: ", skin);
-		final TextField passwordTextField = new TextField("", skin);
-		passwordTextField.setMessageText("password");
-		passwordTextField.setPasswordCharacter('*');
-		passwordTextField.setPasswordMode(true);
+		// Resource r = new Resource("C:/Users/Simon/Downloads/monke.g3db", "");
+
+		// INIT UI
+		initUI();
+		Gdx.input.setInputProcessor(new InputMultiplexer(stage, world.getController()));
+
+		currentMap = loadScene("");
+	}
+
+	/**
+	 * WARINIG: This method is just a mock call
+	 * 
+	 * @param path
+	 * @return
+	 */
+	private Scene loadScene ( String path ) {
+		// Dispose old assets
+		assets.clear();
+		
+		SceneLoader loader = new JsonSceneLoader();
+
+		Scene scene = new Scene();
+		scene.resources.put("C:/Users/Simon/Downloads/monkey.g3db", new Resource("C:/Users/Simon/Downloads/monkey.g3db", ""));
+
+		for (Resource res : scene.resources.values()) {
+			assets.load(res.getFullPath(), Model.class);
+		}
+		
+		assets.finishLoading();
+		
+		scene.gameObjects.add(new GameObject() {{model = new ModelInstance(assets.get("C:/Users/Simon/Downloads/monkey.g3db", Model.class));}});
+		scene.gameObjects.get(0).addChild(new GameObject(-3, 0, 0) {{model = new ModelInstance(assets.get("C:/Users/Simon/Downloads/monkey.g3db", Model.class));}});
+		return scene;
+	}
+
+	private volatile Thread processingThread;
+
+	public void startListening () {
+		processingThread = new Thread() {
+			public void run () {
+				while (true) {
+					try {
+						WatchKey key = SceneEditor.FileWatcher.take();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		};
+		processingThread.start();
+	}
+
+	public void shutDownListener () {
+		Thread thr = processingThread;
+		if (thr != null) {
+			thr.interrupt();
+		}
+	}
+
+	private void initUI () {
+		skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
 		final Tree hierarchy = new Tree(skin);
 		hierarchy.getSelection().setMultiple(false);
@@ -125,8 +151,6 @@ public class SceneEditor extends ApplicationAdapter {
 			public Payload dragStart ( InputEvent event, float x, float y, int pointer ) {
 				Payload payload = new Payload();
 
-				payload.setObject("Some payload!");
-
 				// Select node under mouse if not over the selection.
 				Node overNode = hierarchy.getNodeAt(y);
 				if (overNode == null && hierarchy.getSelection().isEmpty())
@@ -144,8 +168,6 @@ public class SceneEditor extends ApplicationAdapter {
 			private Node selected;
 
 			public boolean drag ( Source source, Payload payload, float x, float y, int pointer ) {
-				// getActor().setColor(Color.GREEN);
-
 				if (selected != null)
 					selected.getActor().setColor(Color.WHITE);
 
@@ -194,8 +216,6 @@ public class SceneEditor extends ApplicationAdapter {
 		});
 
 		ScrollPane scroll = new ScrollPane(hierarchy, skin);
-		scroll.setScrollBarPositions(true, true);
-		scroll.setWidth(10);
 
 		// window.debug();
 		Window window = new Window("Hierarchy", skin);
@@ -208,45 +228,30 @@ public class SceneEditor extends ApplicationAdapter {
 		window.defaults().spaceBottom(10);
 		window.row().fill().expandX();
 		window.add(scroll).fill().expand().minWidth(200).minHeight(500);
-		window.row();
-		window.add(fpsLabel).colspan(4);
 		window.pack();
 
 		// stage.addActor(new Button("Behind Window", skin));
 		stage.addActor(window);
-
-		// Old
-
-		img = new Texture("badlogic.jpg");
-		cam = new PerspectiveCamera(90, 16, 9); // Gdx.graphics.getWidth(),
-												// Gdx.graphics.getHeight() );
-		cam.position.z = 1;
-		cam.near = 0;
-
-		c = new FirstPersonCameraController(cam);
-		Gdx.input.setInputProcessor(new InputMultiplexer(stage, c));
 	}
 
 	@Override
 	public void render () {
-		update(Gdx.graphics.getDeltaTime());
+		if (assets.update()) {
+			update(Gdx.graphics.getDeltaTime());
+		}
 
 		Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1);
-		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
-		batch.setProjectionMatrix(cam.combined);
-		batch.begin();
-		batch.draw(img, 0, 0, 1, 1);
-		batch.end();
+		world.render();
 
 		stage.draw();
 	}
 
 	private void update ( float delta ) {
-		c.update();
+		world.update(delta);
 		stage.act(delta);
 
-		fpsLabel.setText("fps: " + Gdx.graphics.getFramesPerSecond());
 	}
 
 	@Override
