@@ -36,14 +36,17 @@ public class CameraController extends InputAdapter {
 	private int STRAFE_RIGHT = Keys.D;
 	private int FORWARD = Keys.W;
 	private int BACKWARD = Keys.S;
-	private int UP = Keys.Q;
-	private int DOWN = Keys.E;
+	private int UP = Keys.E;
+	private int DOWN = Keys.Q;
 	private float velocity = 5;
 	private float degreesPerPixel = 0.2f;
 	private final Vector3 tmp = new Vector3();
-
-	public CameraController(Camera camera) {
-		this.camera = camera;
+	
+	private World world;
+	
+	public CameraController(World world) {
+		this.world = world;
+		this.camera = world.getCamera();
 	}
 
 	@Override
@@ -81,7 +84,6 @@ public class CameraController extends InputAdapter {
 	@Override
 	public boolean touchDragged ( int screenX, int screenY, int pointer ) {
 		if (Gdx.input.isButtonPressed(1)) {
-			Gdx.app.log("", pointer + "");
 			float deltaX = -Gdx.input.getDeltaX() * degreesPerPixel;
 			float deltaY = -Gdx.input.getDeltaY() * degreesPerPixel;
 			camera.direction.rotate(camera.up, deltaX);
@@ -90,10 +92,10 @@ public class CameraController extends InputAdapter {
 			// camera.up.rotate(tmp, deltaY);
 			
 		} else  if (Gdx.input.isButtonPressed(2)) {
-			tmp.set(camera.up).nor().scl(Gdx.input.getDeltaY() * 0.01f * velocity);
+			tmp.set(camera.direction).crs(camera.up).nor().scl(-Gdx.input.getDeltaX() / camera.viewportWidth * .1f);
 			camera.position.add(tmp);
 			
-			tmp.set(camera.direction).crs(camera.up).nor().scl(Gdx.input.getDeltaX() * -0.01f * velocity);
+			tmp.set(camera.up).nor().scl(Gdx.input.getDeltaY() / camera.viewportHeight * .1f);
 			camera.position.add(tmp);
 		}
 		return true;
@@ -101,6 +103,10 @@ public class CameraController extends InputAdapter {
 
 	public void update () {
 		update(Gdx.graphics.getDeltaTime());
+		
+		if (Gdx.input.justTouched()) {
+			world.select();
+		}
 	}
 
 	public void update ( float deltaTime ) {

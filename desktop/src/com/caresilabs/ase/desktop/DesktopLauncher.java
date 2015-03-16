@@ -9,6 +9,7 @@ public class DesktopLauncher {
 		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
 		config.width = 1280;
 		config.height = 720;
+		config.title = "Ahri Scene Editor - ALPHA";
 		new LwjglApplication(new SceneEditor(), config);
 	}
 }

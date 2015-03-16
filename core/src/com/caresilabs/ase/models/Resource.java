@@ -24,4 +24,8 @@ public class Resource{
 	public String getRelativePath () {
 		return relativePath;
 	}
+	
+	public String getName () {
+		return name;
+	}
 }

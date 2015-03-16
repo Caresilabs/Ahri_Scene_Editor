@@ -20,8 +20,6 @@
 
 package com.caresilabs.ase.models;
 
-import java.nio.file.WatchService;
-
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
@@ -29,6 +27,7 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.sun.scenario.effect.light.Light;
@@ -72,17 +71,20 @@ public class GameObject {
 
 	// Properties
 	// TODO
-
+	public String name;
 	public ModelInstance model;
 	public Light light;
 	public Camera camera;
+	public BoundingBox bounds;
 
-	public GameObject() {
-		setTranslation(0, 0, 0);
+	public GameObject(String name) {
+		this(name, 0, 0, 0);
 	}
 
-	public GameObject(float x, float y, float z) {
-		setTranslation(x, y, z);
+	public GameObject(String name, float x, float y, float z) {
+		this.name = name;
+		this.setPosition(x, y, z);
+		this.bounds = new BoundingBox();
 	}
 
 	public void render ( ModelBatch batch, Environment environment ) {
@@ -98,7 +100,7 @@ public class GameObject {
 
 	// GETTERS AND SETTER
 
-	public void setTranslation ( float x, float y, float z ) {
+	public void setPosition ( float x, float y, float z ) {
 		translation.set(x, y, z);
 		calculateTransforms(true);
 	}
@@ -119,6 +121,10 @@ public class GameObject {
 
 	public Matrix4 getGlobal () {
 		return globalTransform;
+	}
+	
+	public void setParent ( GameObject parent ) {
+		this.parent = parent;
 	}
 
 	// END GETTERS AND SETTERS
@@ -164,6 +170,11 @@ public class GameObject {
 			for (GameObject child : children) {
 				child.calculateTransforms(true);
 			}
+		}
+		
+		if (model != null) {
+			model.calculateBoundingBox(bounds);
+			bounds.mul(globalTransform);
 		}
 	}
 
@@ -275,6 +286,7 @@ public class GameObject {
 		} else
 			children.insert(index, child);
 		child.parent = this;
+		
 		return index;
 	}
 
