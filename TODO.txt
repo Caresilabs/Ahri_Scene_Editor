@@ -1,0 +1,14 @@
+* Enable scripting
+
+* Move, Rotate, Scale with ui and in world
+
+* Importer
+
+* Exporter
+
+* Assets manager (unload resources)
+
+
+* Custom Properties
+
+* Map properties
