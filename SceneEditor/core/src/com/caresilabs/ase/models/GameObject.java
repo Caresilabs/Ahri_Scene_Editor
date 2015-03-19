@@ -20,6 +20,7 @@
 
 package com.caresilabs.ase.models;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
@@ -86,12 +87,15 @@ public class GameObject {
 		this.name = name;
 		this.bounds = new BoundingBox();
 		this.setPosition(x, y, z);
+		this.setRotation(0, 0, 0);
 	}
 
 	public void render ( ModelBatch batch, Environment environment ) {
 		if (model != null) {
-			model.transform = globalTransform;
-			batch.render(model, environment);
+			if (batch.getCamera().frustum.boundsInFrustum(bounds)) {
+				model.transform = globalTransform;
+				batch.render(model, environment);
+			}
 		}
 
 		for (GameObject child : children) {
@@ -100,10 +104,14 @@ public class GameObject {
 	}
 
 	// GETTERS AND SETTER
-	
+
 	public void setModel ( ModelInstance model ) {
 		this.model = model;
 		calculateTransforms(true); // TODO change to only update bounding box
+	}
+
+	public ModelInstance getModel () {
+		return model;
 	}
 
 	public void setPosition ( float x, float y, float z ) {
@@ -131,8 +139,38 @@ public class GameObject {
 		calculateTransforms(true);
 	}
 
+	public void setScaleX ( float x ) {
+		scale.x = x;
+		calculateTransforms(true);
+	}
+
+	public void setScaleY ( float y ) {
+		scale.y = y;
+		calculateTransforms(true);
+	}
+
+	public void setScaleZ ( float z ) {
+		scale.z = z;
+		calculateTransforms(true);
+	}
+
 	public void setRotation ( float yaw, float pitch, float roll ) {
 		rotation.setEulerAngles(yaw, pitch, roll);
+		calculateTransforms(true);
+	}
+
+	public void setYaw ( float yaw ) {
+		rotation.setEulerAngles(yaw, rotation.getPitch(), rotation.getRoll());
+		calculateTransforms(true);
+	}
+
+	public void setPitch ( float pitch ) {
+		rotation.setEulerAngles(rotation.getYaw(), pitch, rotation.getRoll());
+		calculateTransforms(true);
+	}
+
+	public void setRoll ( float roll ) {
+		rotation.setEulerAngles(rotation.getYaw(), rotation.getPitch(), roll);
 		calculateTransforms(true);
 	}
 
@@ -142,6 +180,10 @@ public class GameObject {
 
 	public Matrix4 getGlobal () {
 		return globalTransform;
+	}
+
+	public Vector3 getGlobalPosition () {
+		return globalTransform.getTranslation(new Vector3());
 	}
 
 	public void setParent ( GameObject parent ) {

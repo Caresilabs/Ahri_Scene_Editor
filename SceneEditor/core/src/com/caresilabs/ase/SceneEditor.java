@@ -1,9 +1,11 @@
 package com.caresilabs.ase;
 
 import java.awt.List;
+import java.io.File;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
@@ -13,8 +15,10 @@ import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.assets.loaders.resolvers.AbsoluteFileHandleResolver;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -24,6 +28,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextArea;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField.TextFieldListener;
@@ -42,6 +47,7 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.caresilabs.ase.io.JsonSceneLoader;
 import com.caresilabs.ase.io.SceneLoader;
 import com.caresilabs.ase.listeners.Bridge;
+import com.caresilabs.ase.listeners.FileChooserListener;
 import com.caresilabs.ase.listeners.SceneListener;
 import com.caresilabs.ase.models.GameObject;
 import com.caresilabs.ase.models.Resource;
@@ -63,6 +69,14 @@ public class SceneEditor extends ApplicationAdapter {
 	private SelectBox<Resource> assetsPicker;
 
 	private GameObject selectedObject;
+	
+	public HashMap<String, Class<?>> extensions;
+	
+	private void initExtensions () {
+		extensions = new HashMap<String, Class<?>>();
+		extensions.put(".g3db", Model.class);
+		
+	}
 
 	public SceneEditor(Bridge bridge) {
 		this.bridge = bridge;
@@ -70,6 +84,7 @@ public class SceneEditor extends ApplicationAdapter {
 
 	@Override
 	public void create () {
+		initExtensions();
 		this.stage = new Stage(new ExtendViewport(1280 * 1.5f, 720 * 1.5f)); //
 
 		SceneListener editor = new SceneListener() {
@@ -129,6 +144,7 @@ public class SceneEditor extends ApplicationAdapter {
 		Gdx.input.setInputProcessor(new InputMultiplexer(stage, world.getController()));
 	}
 
+
 	/**
 	 * WARINIG: This method is just a mock call
 	 * 
@@ -143,8 +159,7 @@ public class SceneEditor extends ApplicationAdapter {
 
 		Scene scene = new Scene();
 		scene.resources.put("C:/Users/Simon/Downloads/monkey.g3db", new Resource("C:/Users/Simon/Downloads/monkey.g3db", ""));
-		// scene.resources.put("C:/Users/Simon/Downloads/teapot.g3db", new
-		// Resource("C:/Users/Simon/Downloads/teapot.g3db", ""));
+		scene.resources.put("C:/Users/Simon/Downloads/teapot.g3db", new Resource("C:/Users/Simon/Downloads/teapot.g3db", ""));
 
 		for (Resource res : scene.resources.values()) {
 			assets.load(res.getFullPath(), Model.class);
@@ -222,6 +237,8 @@ public class SceneEditor extends ApplicationAdapter {
 		stage.clear();
 
 		skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+
+		skin.get("default-font", BitmapFont.class).setMarkupEnabled(true);
 
 		uiHierarchy = new Tree(skin);
 		uiHierarchy.getSelection().setMultiple(false);
@@ -344,6 +361,23 @@ public class SceneEditor extends ApplicationAdapter {
 			}
 		});
 
+		TextButton importButton = new TextButton("Import", skin);
+		importButton.addListener(new ChangeListener() {
+
+			@Override
+			public void changed ( ChangeEvent event, Actor actor ) {
+				bridge.openFilePicker(new FileChooserListener() {
+					@Override
+					public void onOpen ( File file ) {
+						Resource res = new Resource(file.getAbsolutePath(), currentMap.path);
+						SceneEditor.this.assets.load(file.getAbsolutePath(), extensions.get(res.getExtension()));
+						SceneEditor.this.currentMap.resources.put(res.getFullPath(), res);
+						updateAssetsPickerList();
+					}
+				});
+			}
+		});
+
 		// tree
 
 		Window tree = new Window("Hierarchy", skin);
@@ -355,6 +389,7 @@ public class SceneEditor extends ApplicationAdapter {
 		tree.setPosition(5, 100);
 		tree.defaults().spaceBottom(10);
 		tree.row().fill().expandX();
+		tree.add(importButton).row();
 		tree.add(newNode).row();
 		tree.add(scroll).fill().expand().minWidth(200).minHeight(500);
 
@@ -385,76 +420,176 @@ public class SceneEditor extends ApplicationAdapter {
 		// pos
 		transformTable.add(new Label("Position", skin)).row();
 		// x
+		
 		transformTable.add(new Label("X", skin));
 		final TextField tx = (new TextField("", skin));
 		tx.setName("positionX");
 		tx.setMessageText("0");
+		transformTable.add(tx).width(50).padRight(10).padLeft(10);
 		tx.setTextFieldFilter(new TextFieldFloatFilter());
 		tx.setTextFieldListener(new TextFieldListener() {
 			@Override
 			public void keyTyped ( TextField textField, char c ) {
-				if (selectedObject != null)
+				if (selectedObject != null) {
+					try {
 					selectedObject.setPositionX(Float.parseFloat(tx.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
 		});
-
-		transformTable.add(tx).width(50).padRight(10).padLeft(10);
+		
 		// y
 		transformTable.add(new Label("Y", skin));
-		TextField ty = (new TextField("", skin));
+		final TextField ty = (new TextField("", skin));
 		ty.setName("positionY");
 		ty.setMessageText("0");
-		transformTable.add(ty).width(50).padRight(20).padLeft(10);
+		transformTable.add(ty).width(50).padRight(10).padLeft(10);
+		ty.setTextFieldFilter(new TextFieldFloatFilter());
+		ty.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setPositionY(Float.parseFloat(ty.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
+			}
+		});
+		
 		// z
 		transformTable.add(new Label("Z", skin));
-		TextField tz = (new TextField("", skin));
+		final TextField tz = (new TextField("", skin));
 		tz.setName("positionZ");
 		tz.setMessageText("0");
-		transformTable.add(tz).width(50).padRight(20).padLeft(10);
+		transformTable.add(tz).width(50).padRight(10).padLeft(10);
+		tz.setTextFieldFilter(new TextFieldFloatFilter());
+		tz.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setPositionZ(Float.parseFloat(tz.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
+			}
+		});
+		
 		transformTable.row();
-
-		// rot
 		transformTable.add(new Label("Rotation", skin)).row();
+		// rot
 		transformTable.add(new Label("X", skin));
-		transformTable.add(new TextField("", skin) {
-			{
-				setMessageText("0");
+		final TextField rx = (new TextField("", skin));
+		rx.setName("rotationX");
+		rx.setMessageText("0");
+		transformTable.add(rx).width(50).padRight(10).padLeft(10);
+		rx.setTextFieldFilter(new TextFieldFloatFilter());
+		rx.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setYaw(Float.parseFloat(rx.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-		}).width(50).padRight(20).padLeft(10);
+		});
+		
 		transformTable.add(new Label("Y", skin));
-		transformTable.add(new TextField("", skin) {
-			{
-				setMessageText("0");
+		final TextField ry = (new TextField("", skin));
+		ry.setName("rotationY");
+		ry.setMessageText("0");
+		transformTable.add(ry).width(50).padRight(10).padLeft(10);
+		ry.setTextFieldFilter(new TextFieldFloatFilter());
+		ry.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setPitch(Float.parseFloat(ry.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-		}).width(50).padRight(20).padLeft(10);
+		});
+		
 		transformTable.add(new Label("Z", skin));
-		transformTable.add(new TextField("", skin) {
-			{
-				setMessageText("0");
+		final TextField rz = (new TextField("", skin));
+		rz.setName("rotationZ");
+		rz.setMessageText("0");
+		transformTable.add(rz).width(50).padRight(10).padLeft(10);
+		rz.setTextFieldFilter(new TextFieldFloatFilter());
+		rz.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setRoll(Float.parseFloat(rz.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-		}).width(50).padRight(20).padLeft(10);
+		});
+		
 		transformTable.row();
-
-		// Scale
 		transformTable.add(new Label("Scale", skin)).row();
+		
 		transformTable.add(new Label("X", skin));
-		transformTable.add(new TextField("", skin) {
-			{
-				setMessageText("1");
+		final TextField sx = (new TextField("", skin));
+		sx.setName("scaleX");
+		sx.setMessageText("0");
+		transformTable.add(sx).width(50).padRight(10).padLeft(10);
+		sx.setTextFieldFilter(new TextFieldFloatFilter());
+		sx.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setScaleX(Float.parseFloat(sx.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-		}).width(50).padRight(20).padLeft(10);
+		});
+		
 		transformTable.add(new Label("Y", skin));
-		transformTable.add(new TextField("", skin) {
-			{
-				setMessageText("1");
+		final TextField sy = (new TextField("", skin));
+		sy.setName("scaleY");
+		sy.setMessageText("0");
+		transformTable.add(sy).width(50).padRight(10).padLeft(10);
+		sy.setTextFieldFilter(new TextFieldFloatFilter());
+		sy.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setScaleY(Float.parseFloat(sy.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-		}).width(50).padRight(20).padLeft(10);
+		});
+		
 		transformTable.add(new Label("Z", skin));
-		transformTable.add(new TextField("", skin) {
-			{
-				setMessageText("1");
+		final TextField sz = (new TextField("", skin));
+		sz.setName("scaleZ");
+		sz.setMessageText("0");
+		transformTable.add(sz).width(50).padRight(10).padLeft(10);
+		sz.setTextFieldFilter(new TextFieldFloatFilter());
+		sz.setTextFieldListener(new TextFieldListener() {
+			@Override
+			public void keyTyped ( TextField textField, char c ) {
+				if (selectedObject != null) {
+					try {
+					selectedObject.setScaleZ(Float.parseFloat(sz.getText()));
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-		}).width(50).padRight(20).padLeft(10);
+		});
 
 		transformTable.row();
 
@@ -465,9 +600,11 @@ public class SceneEditor extends ApplicationAdapter {
 				if (selectedObject != null) {
 					Resource picked = assetsPicker.getSelected();
 
-					if (!picked.isNull()) {
-						ModelInstance instance = new ModelInstance(assets.get(picked.getFullPath(), Model.class));
+					if (!picked.isNull() && assets.isLoaded(picked.getFullPath())) {
+						if (extensions.get(picked.getExtension()) == Model.class) {
+						ModelInstance instance = new ModelInstance((Model) assets.get(picked.getFullPath(), extensions.get(picked.getExtension())));
 						selectedObject.setModel(instance);
+						}
 					} else {
 						selectedObject.setModel(null);
 					}
@@ -477,6 +614,8 @@ public class SceneEditor extends ApplicationAdapter {
 		});
 		updateAssetsPickerList();
 		transformTable.add(assetsPicker);
+
+		transformTable.add(new TextArea("[GREEN]hee[BLUE]", skin));
 
 		scroll = new ScrollPane(transformTable, skin);
 
@@ -490,6 +629,7 @@ public class SceneEditor extends ApplicationAdapter {
 		// uiProperties.row().fill().expandX();
 		uiProperties.add(scroll).expand().fill().padBottom(15);// .minHeight(500);
 		uiProperties.pack();
+		uiProperties.setVisible(false);
 
 		// MENU
 		/*
@@ -536,16 +676,30 @@ public class SceneEditor extends ApplicationAdapter {
 		((TextField) uiProperties.findActor("positionX")).setText(pos.x + "");
 		((TextField) uiProperties.findActor("positionY")).setText(pos.y + "");
 		((TextField) uiProperties.findActor("positionZ")).setText(pos.z + "");
+		
+		
+		Quaternion quat = new Quaternion();
+		selectedObject.getLocal().getRotation(quat);
+		
+		((TextField) uiProperties.findActor("rotationX")).setText(quat.getYaw() + "");
+		((TextField) uiProperties.findActor("rotationY")).setText(quat.getPitch() + "");
+		((TextField) uiProperties.findActor("rotationZ")).setText(quat.getRoll() + "");
+		
+		Vector3 scale = new Vector3();
+		selectedObject.getLocal().getScale(scale);
+
+		((TextField) uiProperties.findActor("scaleX")).setText(scale.x + "");
+		((TextField) uiProperties.findActor("scaleY")).setText(scale.y + "");
+		((TextField) uiProperties.findActor("scaleZ")).setText(scale.z + "");
 
 		assetsPicker.setSelected(selectedObject.resource);
 	}
 
 	@Override
 	public void render () {
-		// if (assets.update()) {
-		assets.update();
-		update(Gdx.graphics.getDeltaTime());
-		// }
+		if (assets.update()) {
+			update(Gdx.graphics.getDeltaTime());
+		}
 
 		Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
