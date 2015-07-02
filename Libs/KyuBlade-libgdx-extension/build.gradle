@@ -10,7 +10,7 @@ version = '1.2.0'
 group = 'com.gdx.extension'
 ext {
     appName = 'libgdx-extension'
-    gdxVersion = '1.5.4'
+    gdxVersion = '1.5.5'
 }
 
 repositories {
