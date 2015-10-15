@@ -116,6 +116,11 @@ public class SceneEditor extends ApplicationAdapter {
 			public GameObject getSelected () {
 				return selectedObject;
 			}
+
+			@Override
+			public void newNode ( Vector3 position ) {
+				SceneEditor.this.newNode(position);
+			}
 		};
 
 		this.world = new World(editor);
@@ -341,23 +346,7 @@ public class SceneEditor extends ApplicationAdapter {
 
 			@Override
 			public void changed ( ChangeEvent event, Actor actor ) {
-				GameObject node = new GameObject("new node");
-				Node sub = new Node(new Label(node.name, skin));
-				sub.setObject(node);
-
-				if (selectedObject != null) {
-					selectedObject.addChild(node);
-					uiHierarchy.findNode(selectedObject).add(sub);
-				} else {
-					currentMap.rootNode.addChild(node);
-					uiHierarchy.add(sub);
-				}
-
-				sub.expandTo();
-				uiHierarchy.getSelection().set(sub);
-				selectedObject = node;
-
-				updatePropertiesWindow();
+				newNode();
 			}
 		});
 
@@ -733,5 +722,35 @@ public class SceneEditor extends ApplicationAdapter {
 		assets.dispose();
 		stage.dispose();
 		skin.dispose();
+	}
+
+	public GameObject newNode () {
+		return newNode(new Vector3());
+	}
+	
+	/**
+	 * creates a new node on selected hiarchy
+	 */
+	public GameObject newNode (Vector3 position) {
+		GameObject node = new GameObject("new node");
+		node.setPosition(position);
+		Node sub = new Node(new Label(node.name, skin));
+		sub.setObject(node);
+
+		if (selectedObject != null) {
+			selectedObject.addChild(node);
+			uiHierarchy.findNode(selectedObject).add(sub);
+		} else {
+			currentMap.rootNode.addChild(node);
+			uiHierarchy.add(sub);
+		}
+
+		sub.expandTo();
+		//uiHierarchy.getSelection().set(sub);
+		//selectedObject = node;
+
+		updatePropertiesWindow();
+		
+		return node;
 	}
 }

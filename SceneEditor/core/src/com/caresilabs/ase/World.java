@@ -111,12 +111,26 @@ public class World {
 			editor.deselect();
 		}
 	}
+	
+	public void insertNew () {
+		Ray ray = cam.getPickRay(Gdx.input.getX(), Gdx.input.getY());
+
+		Array<GameObject> hits = new Array<GameObject>();
+		updateSelection(ray, editor.getScene().rootNode.children, hits);
+
+		// FIXME check distance
+		if (hits.size >= 1) {
+			Vector3 inter = new Vector3();
+			Intersector.intersectRayBounds(ray, hits.get(0).bounds, inter);
+			editor.newNode(inter);
+		}
+	}
 
 	private void updateSelection ( Ray ray, Array<GameObject> nodes, Array<GameObject> hits ) {
 		for (GameObject child : nodes) {
 			if (Intersector.intersectRayBoundsFast(ray, child.bounds)) {
 				if (child.getModel() == null || intersect(ray, child.getModel().model, child.getGlobal(), new Vector3())) {
-				hits.add(child);
+					hits.add(child);
 				}
 			}
 			updateSelection(ray, child.children, hits);

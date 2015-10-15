@@ -20,7 +20,6 @@
 
 package com.caresilabs.ase.models;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
@@ -112,6 +111,11 @@ public class GameObject {
 
 	public ModelInstance getModel () {
 		return model;
+	}
+	
+	public void setPosition ( Vector3 pos ) {
+		translation.set(pos);
+		calculateTransforms(true);
 	}
 
 	public void setPosition ( float x, float y, float z ) {
